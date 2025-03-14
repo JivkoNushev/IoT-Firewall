@@ -18,6 +18,7 @@ all: run
 
 venv:
 	$(PYTHON) -m venv .venv
+    pip install -r requirements.txt
 	$(VENV_ACTIVATE)
 
 run:
