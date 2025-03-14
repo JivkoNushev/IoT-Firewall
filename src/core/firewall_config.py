@@ -1,2 +1,0 @@
-INTERFACE: str = 'wlan0'
-SNIFF_TIMEOUT_SEC: int = 10
