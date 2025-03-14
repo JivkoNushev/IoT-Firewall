@@ -1,4 +1,4 @@
-
+from core.Firewall import Firewall
 
 if __name__ == '__main__':
-    pass
+    Firewall = Firewall()
