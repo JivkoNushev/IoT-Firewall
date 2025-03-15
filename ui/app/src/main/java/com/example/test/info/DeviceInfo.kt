@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.test.whitelist.DeviceBlacklist
 import com.example.test.whitelist.DeviceWhitelist
 
 class DeviceInfo : ComponentActivity() {
@@ -93,8 +94,8 @@ fun DeviceInfoScreen(deviceName: String, onBack: () -> Unit) {
             // Blacklist Button
             Button(
                 onClick = {
-                    //val intent = Intent(context, BlacklistActivity::class.java)
-                    //context.startActivity(intent)
+                    val intent = Intent(context, DeviceBlacklist::class.java)
+                    context.startActivity(intent)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
