@@ -23,7 +23,6 @@ class Firewall:
         self._table = iptc.Table(iptc.Table.FILTER)
         self._input_chain = iptc.Chain(self.filter_table, "INPUT")
         self._output_chain = iptc.Chain(self.filter_table, "OUTPUT")
-        
         known_devices: IoTDevice = []
     
     def run(self):
