@@ -45,7 +45,8 @@ class Database:
     def _create_tables(self):
         try:
             # Create Logs table
-            self._cursor.execute("""
+            self._cursor.execute("""            self._conn.commit()
+
                 CREATE TABLE Logs (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     ip_src VARCHAR(45) NOT NULL,
@@ -65,6 +66,8 @@ class Database:
                     name VARCHAR(255) NOT NULL,
                     ip VARCHAR(45) NOT NULL,
                     mac_address VARCHAR(17) NOT NULL UNIQUE,
+                    port INT NOT NULL,
+                    protocol VARCHAR(20) NOT NULL,
                     is_quarantined TINYINT(1) NOT NULL DEFAULT 0,
                     logs_id INT,
                     FOREIGN KEY (logs_id) REFERENCES Logs(id) ON DELETE SET NULL
@@ -78,17 +81,6 @@ class Database:
                     ip VARCHAR(45) NOT NULL,
                     whitelisted_ip TINYINT(1) NOT NULL DEFAULT 0,
                     FOREIGN KEY (id) REFERENCES Devices(id)
-                ) ENGINE=InnoDB
-            """)
-
-            # Create Device_Ports table
-            self._cursor.execute("""
-                CREATE TABLE Device_Ports (
-                    device_id INT NOT NULL,
-                    port INT NOT NULL,
-                    protocol VARCHAR(20) NOT NULL,
-                    FOREIGN KEY (device_id) REFERENCES Devices(id) ON DELETE CASCADE,
-                    INDEX composite_idx (device_id, port, protocol)
                 ) ENGINE=InnoDB
             """)
 
@@ -118,9 +110,9 @@ class Database:
                 self._cursor.execute("DELETE FROM Devices WHERE ip = %s", (device.ip,))
             else:
                 self._cursor.execute("""
-                    INSERT INTO Devices (name, ip, mac_address, is_quarantined)
+                    INSERT INTO Devices (name, ip, mac_address, port, protocol, is_quarantined)
                     VALUES (%s, %s, %s, %s)
-                """, (device.name, device.ip, device.mac_address, device.is_quarantined))
+                """, (device.name, device.ip, device.mac_address, device.port, device.protocol, device.is_quarantined))
             self._conn.commit()
         except Error as e:
             print(f"Device commit error: {e}")
