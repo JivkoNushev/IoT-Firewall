@@ -15,11 +15,12 @@ class Database:
             self._create_tables()
 
     def run(self):
-        while thread_safe_queue.not_empty():
-            packet = thread_safe_queue.get()
+        while True:
+            if thread_safe_queue.not_empty():
+                packet = thread_safe_queue.get()
 
-            stripped_packet = self._strip_packet(packet)
-            self._commit_stripped_packet(stripped_packet)
+                stripped_packet = self._strip_packet(packet)
+                self._commit_stripped_packet(stripped_packet)
 
     def _create_tables(self):
         self._cursor.execute("""
