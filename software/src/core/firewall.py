@@ -1,14 +1,19 @@
-import datetime
+#TODO FIX THIS
+from datetime import timedelta
+
+INTERFACE: str = 'wlan0'
+SNIFF_TIMEOUT_SEC: int = 10
+GRACE_PERIOD: int = timedelta(minutes=5)
+LAN_SUBNET: str = '192.168.1.0/24'
+
+from datetime import datetime
 import ipaddress
 from typing import List
 import pyshark
 import iptc
 
-
-from ...firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
+from .database import thread_safe_queue
 from .IoTDevice import IoTDevice
-
-from ..main import thread_safe_queue
 
 class Firewall:
     def __init__(self):
@@ -110,6 +115,8 @@ class Firewall:
         return valid_mac_addresses
 
     def _block_all_traffic(self, device: IoTDevice, keep_whitelisted: bool = True):
+        #TODO remove
+        pass
         self._block_traffic_in_direction(device, "INPUT", keep_whitelisted)
         self._block_traffic_in_direction(device, "OUTPUT", keep_whitelisted)
       

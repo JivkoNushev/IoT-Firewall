@@ -4,10 +4,8 @@ import queue
 from core.firewall import Firewall
 from core.database import Database
 
-thread_safe_queue = queue.Queue()
-
 if __name__ == '__main__':
-    database = Database()
+    database = Database("localhost", "firewall_user", "password", "firewall_db")
     database_thread = threading.Thread(target=Database.run)
 
     firewall = Firewall()
@@ -19,4 +17,5 @@ if __name__ == '__main__':
 
 
     firewall_thread.join() 
+
     database_thread.join()

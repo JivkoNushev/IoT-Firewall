@@ -1,7 +1,9 @@
 import mysql.connector
 from mysql.connector import Error
 
-from ..main import thread_safe_queue
+import queue
+
+thread_safe_queue = queue.Queue()
 
 class Database:
     def __init__(self, host, user, password, database):
