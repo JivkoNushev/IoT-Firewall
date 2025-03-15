@@ -164,6 +164,12 @@ fun DeviceItem(device: String, isSelected: Boolean, onClick: () -> Unit) {
             ) {
                 Text("Info")
             }
+
+            Button(
+                onClick = {}
+            ) {
+                Text("Quarantine")
+            }
         }
     }
 }
