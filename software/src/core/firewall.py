@@ -15,9 +15,9 @@ class Firewall:
         self._grace_period_ended = False
         self._blocked_all_traffic = False
 
-        self._table = iptc.Table(iptc.Table.FILTER)
-        self._input_chain = iptc.Chain(self._table.filter_table, "INPUT")
-        self._output_chain = iptc.Chain(self._table.filter_table, "OUTPUT")
+        self._filter_table = iptc.Table(iptc.Table.FILTER)
+        self._input_chain = iptc.Chain(self._filter_table, "INPUT")
+        self._output_chain = iptc.Chain(self._filter_table.filter_table, "OUTPUT")
         self._known_devices: List[IoTDevice] = []
 
         self._valid_mac_addresses = self._get_valid_mac_addresses()
@@ -93,7 +93,7 @@ class Firewall:
         else:
             print("Could not create block rule for device with IP: " + device.ip)
 
-        self._table.commit()
+        self._filter_table.commit()
     
 
     def _get_valid_mac_addresses(self):
