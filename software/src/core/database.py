@@ -3,7 +3,9 @@ from mysql.connector import Error
 
 import queue
 
-thread_safe_queue = queue.Queue()
+thread_safe_queue_logs = queue.Queue()
+thread_safe_queue_devices = queue.Queue()
+thread_safe_queue_whitelists = queue.Queue()
 
 class Database:
     def __init__(self, host, user, password, database):
@@ -28,10 +30,17 @@ class Database:
 
     def run(self):
         while True:
-            if thread_safe_queue.not_empty():
-                packet = thread_safe_queue.get()
-                stripped_packet = self._strip_packet(packet)
-                self._commit_stripped_packet(stripped_packet)
+            if thread_safe_queue_logs.not_empty():
+                log = thread_safe_queue_logs.get()
+                self._commit_log(log)
+
+            if thread_safe_queue_devices.not_empty():
+                device = thread_safe_queue_devices.get()
+                self._commit_device(device)
+
+            if thread_safe_queue_whitelists.not_empty():
+                whitelist = thread_safe_queue_whitelists.get()
+                self._commit_whitelist(whitelist)
 
     def _create_tables(self):
         try:
@@ -62,6 +71,16 @@ class Database:
                 ) ENGINE=InnoDB
             """)
 
+            #Whitelist
+            self._cursor.execute("""
+                CREATE TABLE Whitelist (
+                    id INT PRIMARY KEY AUTO_INCREMENT,
+                    ip VARCHAR(45) NOT NULL,
+                    whitelisted_ip TINYINT(1) NOT NULL DEFAULT 0,
+                    FOREIGN KEY (id) REFERENCES Devices(id)
+                ) ENGINE=InnoDB
+            """)
+
             # Create Device_Ports table
             self._cursor.execute("""
                 CREATE TABLE Device_Ports (
@@ -79,62 +98,47 @@ class Database:
             self._conn.rollback()
             raise
 
-    def _strip_packet(self, packet):
-        # Implement your packet stripping logic here
-        return packet  # Return structured data
-
-    def _commit_stripped_packet(self, stripped_packet):
+    def _commit_log(self, log):
         try:
-            # Insert log entry
             self._cursor.execute("""
-                INSERT INTO Logs (ip_src, ip_dst, mac_src, mac_dst, port, protocol) 
+                INSERT INTO Logs (ip_src, ip_dst, mac_src, mac_dst, port, protocol)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                stripped_packet.ip_src,
-                stripped_packet.ip_dst,
-                stripped_packet.mac_src,
-                stripped_packet.mac_dst,
-                stripped_packet.port,
-                stripped_packet.protocol
-            ))
-            
-            log_id = self._cursor.lastrowid
-
-            # Upsert device information
-            self._cursor.execute("""
-                INSERT INTO Devices (name, ip, mac_address, is_quarantined, logs_id)
-                VALUES (%s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    ip = VALUES(ip),
-                    logs_id = VALUES(logs_id)
-            """, (
-                "Unknown Device",
-                stripped_packet.ip_src,
-                stripped_packet.mac_src,
-                0,
-                log_id
-            ))
-
-            device_id = self._cursor.lastrowid
-            if device_id == 0:  # If existing record was updated
-                self._cursor.execute("""
-                    SELECT id FROM Devices WHERE mac_address = %s
-                """, (stripped_packet.mac_src,))
-                device_id = self._cursor.fetchone()[0]
-
-            # Insert port information
-            self._cursor.execute("""
-                INSERT INTO Device_Ports (device_id, port, protocol)
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    port = VALUES(port),
-                    protocol = VALUES(protocol)
-            """, (device_id, stripped_packet.port, stripped_packet.protocol))
-
+            """, (log.ip_src, log.ip_dst, log.mac_src, log.mac_dst, log.port, log.protocol))
             self._conn.commit()
-
         except Error as e:
-            print(f"Commit error: {e}")
+            print(f"Log commit error: {e}")
+            self._conn.rollback()
+            raise
+    
+    def _commit_device(self, device):
+        try:
+            # if exists remove it if not insert it
+            self._cursor.execute("SELECT * FROM Devices WHERE ip = %s", (device.ip,))
+            if self._cursor.fetchall():
+                self._cursor.execute("DELETE FROM Devices WHERE ip = %s", (device.ip,))
+            else:
+                self._cursor.execute("""
+                    INSERT INTO Devices (name, ip, mac_address, is_quarantined)
+                    VALUES (%s, %s, %s, %s)
+                """, (device.name, device.ip, device.mac_address, device.is_quarantined))
+            self._conn.commit()
+        except Error as e:
+            print(f"Device commit error: {e}")
+            self._conn.rollback()
+            raise
+    
+    def _commit_whitelist(self, src_dst):
+        try:
+            src, dst = src_dst
+
+            self._cursor.execute("SELECT * FROM Whitelist WHERE ip = %s AND whitelisted_ip = %s", (src, dst))
+            if self._cursor.fetchall():
+                self._cursor.execute("DELETE FROM Whitelist WHERE ip = %s AND whitelisted_ip = %s", (src, dst))
+            else:
+                self._cursor.execute("INSERT INTO Whitelist (ip, whitelisted_ip) VALUES (%s, %s)", (src, dst))
+            self._conn.commit()
+        except Error as e:
+            print(f"Whitelist commit error: {e}")
             self._conn.rollback()
             raise
 

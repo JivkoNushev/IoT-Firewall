@@ -4,7 +4,7 @@ from typing import List
 import pyshark
 import iptc
 
-from .database import thread_safe_queue
+from .database import thread_safe_queue_logs, thread_safe_queue_devices, thread_safe_queue_whitelists
 from .IoTDevice import IoTDevice
 from .firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
 
@@ -181,10 +181,18 @@ class Firewall:
             device = self._known_devices[(known_devices_ips.index(packet.ip.src))]
             device.update_from_packet(packet)
 
+            if packet.ip.dst not in device.whitelist:
+                device.whitelist.append(packet.ip.dst)
+                self._save_whitelist_db(packet.ip.src, packet.ip.dst)
+
             return device
         else:
             device = IoTDevice(packet)
+            device.whitelist.append(packet.ip.dst)
             self._known_devices.append(device)
+
+            self._save_whitelist_db(packet.io.src, packet.ip.dst)
+            self._save_device_db(device)
 
             return device
 
@@ -193,17 +201,27 @@ class Firewall:
         
         return self._grace_period_ended
 
-    def _add_rule(self, rule):
-        pass
+    def add_whitelisted(self, device, ips: List[str]):
+        for ip in ips:
+            device.whitelist.add(ip)
+            self._save_whitelist_db(device.ip, ip)
 
-    def _remove_rule(self, rule):
-        pass
+    def remove_whitelisted(self, device, ips: List[str]):
+        for ip in ips:
+            device.whitelist.remove(ip)
+            self._remove_whitelist_db(device.ip, ip)
 
-    def add_whitelisted(self, ips: List[str]):
-        pass
+    def _save_log_db(self, packet):
+        thread_safe_queue_logs.put(packet)
+    
+    def _save_device_db(self, device):
+        thread_safe_queue_devices.put(device)
 
-    def remove_whitelisted(self, ips: List[str]):
-        pass
+    def _remove_device_db(self, device):
+        thread_safe_queue_devices.put(device)
+    
+    def _save_whitelist_db(self, src, dst):
+        thread_safe_queue_whitelists.put((src, dst))
 
-    def _save_packet_info(self, packet):
-        thread_safe_queue.put(packet)
+    def _remove_whitelist_db(self, src, dst):
+        thread_safe_queue_whitelists.put((src, dst))

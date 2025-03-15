@@ -10,18 +10,22 @@ db_config = {
     'database': 'firewall_db'
 }
 
-@app.route('/data')
-def get_data():
+conn = mysql.connector.connect(
+            host=db_config['host'],
+            user=db_config['user'],
+            password=db_config['password'],
+            database=db_config['database']
+        )
+cursor = conn.cursor()
+
+@app.route('/get_whitelisted', methods=['POST'])
+def get_whitelisted(device_ip):
     try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM your_table")
-        data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return jsonify(data)
+        cursor.execute("SELECT * FROM Whitelist WHERE ip = {device_ip}")
+        result = cursor.fetchall()
+        return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return str(e)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
