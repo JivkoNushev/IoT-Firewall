@@ -20,7 +20,7 @@ run:
 	$(PYTHON) src/main.py
 
 venv:
-	$(PYTHON) -m venv .venv
+	python3 -m venv .venv
 	chmod +x $(VENV_ACTIVATE)
 	$(VENV_ACTIVATE)
 	.venv/bin/pip install -r requirements.txt
