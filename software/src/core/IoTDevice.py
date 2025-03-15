@@ -1,7 +1,5 @@
 import iptc
-from .firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC
-import datetime
-import pyshark
+from software.firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC
 
 class IoTDevice:
     # Is it better to have a class for a device packet structure, 
@@ -130,7 +128,6 @@ class IoTDevice:
         rule.src = ip
         rule.target = iptc.Target(rule, 'ACCEPT')
         chain.insert_rule(rule)
-
 
     def __str__(self):
         return f'IP: {self.ip}, MAC: {self.mac_address}'

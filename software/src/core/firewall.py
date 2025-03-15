@@ -5,8 +5,10 @@ import pyshark
 import iptc
 
 
-from .firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
+from ...firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
 from .IoTDevice import IoTDevice
+
+from ..main import thread_safe_queue
 
 class Firewall:
     def __init__(self):
@@ -21,6 +23,7 @@ class Firewall:
         self._table = iptc.Table(iptc.Table.FILTER)
         self._input_chain = iptc.Chain(self.filter_table, "INPUT")
         self._output_chain = iptc.Chain(self.filter_table, "OUTPUT")
+        
         known_devices: IoTDevice = []
     
     def run(self):
@@ -175,5 +178,4 @@ class Firewall:
         pass
 
     def _save_packet_info(self, packet):
-        # send packet to Database thread
-        pass
+        thread_safe_queue.put(packet)
