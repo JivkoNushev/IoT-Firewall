@@ -14,6 +14,8 @@ class IoTDevice:
         self.white_list = []
         self.black_list = []
 
+        self.rules = []
+
     def add_port(self, port):
         self.ports.append(port)
 

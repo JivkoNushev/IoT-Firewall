@@ -14,6 +14,9 @@
 
 
 ## Project setup
+  - sudo apt install python3
+  - python3 -m pip install ansible
+
   - setup venv `make venv`
   - run project `make run`
   

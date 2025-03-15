@@ -24,3 +24,6 @@ venv:
 	chmod +x $(VENV_ACTIVATE)
 	$(VENV_ACTIVATE)
 	.venv/bin/pip install -r requirements.txt
+
+deps:
+	.venv/bin/pip install -r requirements.txt

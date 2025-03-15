@@ -1,0 +1,67 @@
+---
+- name: IoTFirewall Infrastructure
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+        cache_valid_time: 3600
+
+    - name: Install essential packages
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-dev
+          - git
+          - make
+          - build-essential
+          - libxml2-dev
+          - libxslt-dev
+        state: present
+        update_cache: no
+
+    - name: Install Wireshark components
+      apt:
+        name:
+          - tshark
+          - wireshark-common
+        state: present
+
+    - name: Add user to wireshark group
+      user:
+        name: "{{ ansible_user }}"
+        groups: wireshark
+        append: yes
+
+    - name: Reboot system to apply group changes
+      reboot:
+        msg: "Rebooting to apply wireshark group permissions"
+      when: true
+
+  post_tasks:
+    - name: Check Python version
+      command: python3 --version
+      register: python_version
+      changed_when: false
+
+    - name: Check Git version
+      command: git --version
+      register: git_version
+      changed_when: false
+
+    - name: Check tshark version
+      command: tshark --version
+      register: tshark_version
+      changed_when: false
+
+    - name: Show installation results
+      debug:
+        msg:
+          - "Python: {{ python_version.stdout }}"
+          - "Git: {{ git_version.stdout }}"
+          - "TShark: {{ tshark_version.stdout_lines[0] }}"
