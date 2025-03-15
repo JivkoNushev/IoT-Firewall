@@ -9,8 +9,8 @@ ifeq ($(OS_DETECTED),Windows)
 	VENV_ACTIVATE := .venv\Scripts\activate.bat
 	CLEAR_CMD := cls
 else
-	PYTHON := python3
-	VENV_ACTIVATE := source .venv/bin/activate
+	PYTHON := .venv/bin/python3
+	VENV_ACTIVATE := .venv/bin/activate
 	CLEAR_CMD := clear
 endif
 
@@ -21,5 +21,6 @@ run:
 
 venv:
 	$(PYTHON) -m venv .venv
-	pip install -r requirements.txt
+	chmod +x $(VENV_ACTIVATE)
 	$(VENV_ACTIVATE)
+	.venv/bin/pip install -r requirements.txt
