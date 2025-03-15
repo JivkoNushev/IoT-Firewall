@@ -19,4 +19,13 @@
 
   - setup venv `make venv`
   - run project `make run`
+
+
+
+```bash
+sudo apt update
+sudo apt install python3-venv python3-dev libxtables-dev
+sudo apt install python3-full
+sudo apt install python3-distutils python3-dev libxtables-dev
+```
   

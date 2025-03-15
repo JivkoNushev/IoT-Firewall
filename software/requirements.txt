@@ -1,2 +1,3 @@
-pyshark
-python-iptables
+pyshark==0.4.3
+mysql-connector-python==8.0.32
+python-iptables==1.0.1

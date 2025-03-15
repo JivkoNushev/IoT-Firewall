@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: firewall-app
+    restart: unless-stopped
+    networks:
+      - backend
+    depends_on:
+      - mysql
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=secret
+      - MYSQL_DB=firewall
+    volumes:
+      - ./src:/app/src
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+  mysql:
+    image: mariadb:latest
+    container_name: firewall-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: firewall
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - backend
+    ports:
+      - "3306:3306"
+
+volumes:
+  mysql_data:
+
+networks:
+  backend:
+    driver: bridge
