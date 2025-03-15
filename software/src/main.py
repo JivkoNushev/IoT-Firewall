@@ -1,5 +1,4 @@
 import threading
-import queue
 
 from core.firewall import Firewall
 from core.database import Database
