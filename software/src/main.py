@@ -8,5 +8,5 @@ if __name__ == '__main__':
     firewall_thread = threading.Thread(target=Firewall.run)
     firewall_thread.start()
 
-    thread.join()
+    firewall_thread.join()
 

@@ -1,21 +1,30 @@
+
+
 class IoTDevice:
     # Is it better to have a class for a device packet structure, 
     # because that way we can whitelist/blacklist by port, protocol, etc
     # and not only by IP and MAC?
-    def __init__(self, ip, mac_address):
-        self.name: str = mac_address
-        self.ip = ip
-        self.mac_address = mac_address
+    def __init__(self, packet):
+        self.name: str = packet.ip.src
+        self.ip = packet.ip.src
+        self.mac_address = packet.eth.src
 
         # Is there a difference between protocols and ports?
         self.ports = []
         self.protocols = []
 
         self.white_list = []
-        self.black_list = []
 
         self.rules = []
 
+        self.is_quarantined = False
+
+    def _update_from_packet(self, packet):
+        if packet.port not in self.ports:
+            self.ports.append(packet.port)
+        if packet.protocol not in self.protocols:
+            self.protocols.append(packet.protocol)
+        
     def add_port(self, port):
         self.ports.append(port)
 
@@ -36,6 +45,8 @@ class IoTDevice:
     
     def remove_from_black_list(self, ip):
         self.black_list.remove(ip)
+
+    
     
 
 
