@@ -16,14 +16,14 @@ class Firewall:
         self._blocked_all_traffic = False
 
         self._table = iptc.Table(iptc.Table.FILTER)
-        self._input_chain = iptc.Chain(self.filter_table, "INPUT")
-        self._output_chain = iptc.Chain(self.filter_table, "OUTPUT")
+        self._input_chain = iptc.Chain(self._table.filter_table, "INPUT")
+        self._output_chain = iptc.Chain(self._table.filter_table, "OUTPUT")
         self._known_devices: List[IoTDevice] = []
 
         self._valid_mac_addresses = self._get_valid_mac_addresses()
         
-        capture = pyshark.LiveCapture(interface=INTERFACE)
-        capture.sniff(timeout=SNIFF_TIMEOUT_SEC)
+        self.capture = pyshark.LiveCapture(interface=INTERFACE)
+        self.capture.sniff(timeout=SNIFF_TIMEOUT_SEC)
     
     def run(self):
         for packet in self.capture.sniff_continuously():
@@ -32,7 +32,7 @@ class Firewall:
                     self._save_device(packet)
             else:
                 if not self._blocked_all_traffic:
-                    for device in self.known_devices:
+                    for device in self._known_devices:
                         self._block_all_traffic(device)
                     self._blocked_all_traffic = True
 
@@ -53,11 +53,11 @@ class Firewall:
                 accept_rule = iptc.Rule()
             
                 if direction == "INPUT":
-                    accept_rule.in_interface = self.interface
+                    accept_rule.in_interface = INTERFACE
                     accept_rule.src = ip
                     accept_rule.dst = device.ip
                 elif direction == "OUTPUT":
-                    accept_rule.out_interface = self.interface
+                    accept_rule.out_interface = INTERFACE
                     accept_rule.src = device.ip
                     accept_rule.dst = ip
                 else:
@@ -71,23 +71,23 @@ class Firewall:
                     return
 
         block_rule = iptc.Rule()
-        
+
         if direction == "INPUT":
-            block_rule.in_interface = self.interface
+            block_rule.in_interface = INTERFACE
             block_rule.dst = device.ip
         elif direction == "OUTPUT":
-            block_rule.out_interface = self.interface
+            block_rule.out_interface = INTERFACE
             block_rule.src = device.ip
         else:
             block_rule = None
-            
+
         if block_rule is not None:
             block_rule.target = iptc.Target(block_rule, "DROP")
             chain.insert_rule(block_rule)
         else:
-            print("Could not create block rule for IP: " + ip)
-            return 
-        
+            print("Could not create block rule for IP: " + device.ip)
+            return
+
         if block_rule is not None:
             chain.append_rule(block_rule)
         else:
@@ -114,7 +114,7 @@ class Firewall:
         self._block_traffic_in_direction(device, "OUTPUT", keep_whitelisted)
       
     def get_known_devices_src_ips(self):
-        return [device.ip for device in self.known_devices]
+        return [device.ip for device in self._known_devices]
     
     def quarantine_devices_from_packet(self, packet):
         initiator = self._get_device_from_ip(packet.ip.src)
@@ -130,9 +130,9 @@ class Firewall:
 
         if initiator is None: # then device is a server
             device = self._get_device_from_ip(packet.ip.dest)
-            if device is None or device.is_quarantined or not device.white_listed.contains(packet.ip.src):
+            if device is None or device.is_quarantined or not device.whitelist.contains(packet.ip.src):
                 return True
-        elif initiator.is_quarantined or not initiator.white_listed.contains(packet.ip.dest):
+        elif initiator.is_quarantined or not initiator.whitelist.contains(packet.ip.dest):
                 return True    
         
         # Huristic checks
@@ -158,7 +158,7 @@ class Firewall:
                 return device
         return None
     
-    def _is_ip_in_lan(ip_str):
+    def _is_ip_in_lan(self, ip_str):
         try:
             ip = ipaddress.ip_address(ip_str)
 
