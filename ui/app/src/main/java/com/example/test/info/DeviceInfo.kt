@@ -101,17 +101,7 @@ fun DeviceInfoScreen(deviceName: String, onBack: () -> Unit) {
             ) {
                 Text("Blacklist")
             }
-
-            // Quarantine Button
-            Button(
-                onClick = {
-                    //val intent = Intent(context, QuarantineActivity::class.java)
-                    //context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Quarantine")
-            }
+            
         }
 
         // Back Button
