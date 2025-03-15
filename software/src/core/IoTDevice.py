@@ -23,7 +23,7 @@ class IoTDevice:
         self.is_quarantined = False
 
 
-    def _update_from_packet(self, packet):
+    def update_from_packet(self, packet):
         if packet.port not in self.ports:
             self.ports.append(packet.port)
         if packet.protocol not in self.protocols:
@@ -43,12 +43,6 @@ class IoTDevice:
 
     def remove_from_whitelist(self, ip):
         self.whitelist.remove(ip)
-
-    def add_to_black_list(self, ip):
-        self.black_list.append(ip)
-    
-    def remove_from_black_list(self, ip):
-        self.black_list.remove(ip)
 
     def _block_traffic(self, direction):
         if direction.upper() != 'INPUT' and direction.upper() != 'OUTPUT':

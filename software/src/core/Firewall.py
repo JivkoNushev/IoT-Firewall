@@ -10,8 +10,6 @@ from .IoTDevice import IoTDevice
 
 class Firewall:
     def __init__(self):
-        capture = pyshark.LiveCapture(interface=INTERFACE)
-        capture.sniff(timeout=SNIFF_TIMEOUT_SEC)
 
         self._start_time = datetime.now()
         self._grace_period = GRACE_PERIOD
@@ -21,12 +19,23 @@ class Firewall:
         self._table = iptc.Table(iptc.Table.FILTER)
         self._input_chain = iptc.Chain(self.filter_table, "INPUT")
         self._output_chain = iptc.Chain(self.filter_table, "OUTPUT")
-        known_devices: IoTDevice = []
+        self._known_devices: List[IoTDevice] = []
+
+        self._valid_mac_addresses = []
+        with open('../mac_address_vendors.txt', 'r') as file:
+            for line in file:
+                mac = line.strip()
+                if mac:
+                    self._valid_mac_addresses.append(mac)
+
+        capture = pyshark.LiveCapture(interface=INTERFACE)
+        capture.sniff(timeout=SNIFF_TIMEOUT_SEC)
     
     def run(self):
         for packet in self.capture.sniff_continuously():
             if self._in_grace_period(self):
-                self._save_device(packet)
+                if self._is_ip_in_lan(packet.ip.src) and self._is_valid_mac_address(packet.eth.src):
+                    self._save_device(packet)
             else:
                 if not self._blocked_all_traffic:
                     for device in self.known_devices:
@@ -137,7 +146,7 @@ class Firewall:
         device.is_quarantined = True
 
     def _get_device_from_ip(self, ip):
-        for device in self.known_devices:
+        for device in self._known_devices:
             if device.ip == ip:
                 return device
         return None
@@ -153,9 +162,27 @@ class Firewall:
         except ValueError:
             return False
 
+
+    def _is_valid_mac_address(self, mac):
+        src_mac = mac.replace(':', '')
+        oui = src_mac[:6].upper()
+        return oui in self._valid_mac_addresses
+
+    def _get_device(self, packet):
+        if packet.ip.src in self._known_devices:
+            device = self._known_devices[(self.get_known_devices_src_ips().index(packet.ip.src))]
+            device.update_from_packet(packet)
+            return device
+        else: return None
+
+
     def _save_device(self, packet):
-        if(not self._is_ip_in_lan(packet.ip.src)):
-            return
+        device = self._get_device(packet)
+        if device is None:
+            device = IoTDevice(packet)
+            self._known_devices.append(device)
+        else:
+            device.update_from_packet(packet)
 
     def _in_grace_period(self):
         self._grace_period_ended = datetime.now() - self._start_time >= self._grace_period
