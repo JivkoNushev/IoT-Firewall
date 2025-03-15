@@ -45,7 +45,7 @@ class Database:
     def _create_tables(self):
         try:
             # Create Logs table
-            self._cursor.execute("""            self._conn.commit()
+            self._cursor.execute("""    
 
                 CREATE TABLE Logs (
                     id INT PRIMARY KEY AUTO_INCREMENT,

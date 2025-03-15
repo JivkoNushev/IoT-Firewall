@@ -36,7 +36,7 @@ def get_logs():
     except Exception as e:
         return str(e)
     
-@app.route('/get_devices', methods=['POST'])
+@app.route('/get_devices', methods=['GET'])
 def get_devices():
     try:
         cursor.execute("SELECT * FROM Devices")
