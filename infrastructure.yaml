@@ -1,67 +1,111 @@
 ---
-- name: IoTFirewall Infrastructure
+- name: Configure IoT Firewall infrastructure
   hosts: all
   become: yes
-  gather_facts: yes
-
+  vars:
+    ssid: "IoTFirewall"
+    wifi_interface: "wlan0"
+    wifi_password: "StrongPassword123"
+    mysql_host: "127.0.0.1"
+    mysql_user: "root"
+    mysql_password: "rootpassword"
+    mysql_database: "testdb"
+  
   tasks:
-    - name: Update and upgrade apt packages
-      apt:
-        update_cache: yes
-        upgrade: yes
-        cache_valid_time: 3600
 
-    - name: Install essential packages
+    - name: Install required packages
       apt:
         name:
           - python3
           - python3-pip
-          - python3-dev
-          - git
-          - make
-          - build-essential
-          - libxml2-dev
-          - libxslt-dev
-        state: present
-        update_cache: no
-
-    - name: Install Wireshark components
-      apt:
-        name:
+          - iptables
           - tshark
-          - wireshark-common
+          - mysql-client
+          - hostapd
+          - dnsmasq
+        state: present
+        update_cache: yes
+
+    - name: Install Python dependencies
+      pip:
+        name:
+          - pyshark
+          - mysql-connector-python
+
+    - name: Configure hostapd
+      copy:
+        dest: /etc/hostapd/hostapd.conf
+        content: |
+          interface={{ wifi_interface }}
+          driver=nl80211
+          ssid={{ ssid }}
+          hw_mode=g
+          channel=7
+          macaddr_acl=0
+          auth_algs=1
+          wpa=2
+          wpa_passphrase={{ wifi_password }}
+          wpa_key_mgmt=WPA-PSK
+          rsn_pairwise=CCMP
+      notify: Restart hostapd
+
+    - name: Set hostapd daemon configuration
+      lineinfile:
+        path: /etc/default/hostapd
+        line: 'DAEMON_CONF="/etc/hostapd/hostapd.conf"'
+        state: present
+      notify: Restart hostapd
+
+    - name: Configure dnsmasq
+      copy:
+        dest: /etc/dnsmasq.conf
+        content: |
+          interface={{ wifi_interface }}
+          dhcp-range=192.168.1.10,192.168.1.100,12h
+          dhcp-option=3,192.168.1.1
+          dhcp-option=6,8.8.8.8,8.8.4.4
+      notify: Restart dnsmasq
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
         state: present
 
-    - name: Add user to wireshark group
-      user:
-        name: "{{ ansible_user }}"
-        groups: wireshark
-        append: yes
+    - name: Configure iptables for NAT
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        jump: MASQUERADE
+        out_interface: eth0
 
-    - name: Reboot system to apply group changes
-      reboot:
-        msg: "Rebooting to apply wireshark group permissions"
-      when: true
+    - name: Save iptables rules
+      shell: iptables-save > /etc/iptables.rules
 
-  post_tasks:
-    - name: Check Python version
-      command: python3 --version
-      register: python_version
-      changed_when: false
+    - name: Ensure iptables rules are restored on boot
+      copy:
+        dest: /etc/network/if-pre-up.d/iptables
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          iptables-restore < /etc/iptables.rules
 
-    - name: Check Git version
-      command: git --version
-      register: git_version
-      changed_when: false
+    - name: Enable and start services
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - hostapd
+        - dnsmasq
 
-    - name: Check tshark version
-      command: tshark --version
-      register: tshark_version
-      changed_when: false
+  handlers:
+    - name: Restart hostapd
+      systemd:
+        name: hostapd
+        state: restarted
 
-    - name: Show installation results
-      debug:
-        msg:
-          - "Python: {{ python_version.stdout }}"
-          - "Git: {{ git_version.stdout }}"
-          - "TShark: {{ tshark_version.stdout_lines[0] }}"
+    - name: Restart dnsmasq
+      systemd:
+        name: dnsmasq
+        state: restarted
