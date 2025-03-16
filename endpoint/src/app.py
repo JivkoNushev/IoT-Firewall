@@ -26,17 +26,17 @@ def get_db_connection():
 
 @app.route('/get_whitelisted', methods=['GET'])
 def get_whitelisted():
-    device_ip = request.args.get('device_ip')
-    if not device_ip:
-        return jsonify({"error": "device_ip is required"}), 400
+    device_id = request.args.get('device_id')
+    if not device_id:
+        return jsonify({"error": "device_id is required"}), 400
 
     conn = get_db_connection()
     if not conn:
         return jsonify({"error": "Failed to connect to the database"}), 500
 
     cursor = conn.cursor(dictionary=True)
-    query = "SELECT * FROM Whitelist WHERE ip = %s"
-    cursor.execute(query, (device_ip,))
+    query = "SELECT * FROM Whitelist WHERE device_id = %s"
+    cursor.execute(query, (device_id,))
     result = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -75,9 +75,9 @@ def get_devices():
 
 @app.route('/get_device', methods=['GET'])
 def get_device():
-    device_ip = request.args.get('device_ip')
-    if not device_ip:
-        return jsonify({"error": "device_ip is required"}), 400
+    device_id = request.args.get('device_id')
+    if not device_id:
+        return jsonify({"error": "device_id is required"}), 400
 
     conn = get_db_connection()
     if not conn:
@@ -85,7 +85,7 @@ def get_device():
 
     cursor = conn.cursor(dictionary=True)
     query = "SELECT * FROM Devices WHERE ip = %s"
-    cursor.execute(query, (device_ip,))
+    cursor.execute(query, (device_id,))
     result = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -94,9 +94,9 @@ def get_device():
 
 @app.route('/get_device_logs', methods=['GET'])
 def get_device_logs():
-    device_ip = request.args.get('device_ip')
-    if not device_ip:
-        return jsonify({"error": "device_ip is required"}), 400
+    device_id = request.args.get('device_id')
+    if not device_id:
+        return jsonify({"error": "device_id is required"}), 400
 
     conn = get_db_connection()
     if not conn:
@@ -104,7 +104,7 @@ def get_device_logs():
 
     cursor = conn.cursor(dictionary=True)
     query = "SELECT * FROM Logs WHERE ip_src = %s OR ip_dst = %s"
-    cursor.execute(query, (device_ip, device_ip))
+    cursor.execute(query, (device_id, device_id))
     result = cursor.fetchall()
     cursor.close()
     conn.close()

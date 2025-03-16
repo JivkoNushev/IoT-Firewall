@@ -18,7 +18,7 @@ class Database:
             )
             self._cursor = self._conn.cursor()
             
-            self._cursor.execute("SHOW TABLES LIKE 'Logs'")
+            # self._cursor.execute("SHOW TABLES LIKE 'Logs'")
             self._create_tables()
                 
         except Error as e:
