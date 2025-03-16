@@ -2,6 +2,8 @@ import mysql.connector
 from mysql.connector import Error
 
 import queue
+from IoTDevice import Device
+from typing import List
 
 thread_safe_queue_logs = queue.Queue()
 thread_safe_queue_devices = queue.Queue()
@@ -68,7 +70,8 @@ class Database:
                     is_quarantined TINYINT(1) NOT NULL DEFAULT 0,
                     logs_id INT,
                     FOREIGN KEY (logs_id) REFERENCES Logs(id) ON DELETE SET NULL
-                ) ENGINE=InnoDB
+                ) ENGINE=InnoDB# parse to Device objects
+        return self._cursor.fetchall()
             """)
 
             #Whitelist
@@ -87,6 +90,16 @@ class Database:
             print(f"Table creation error: {e}")
             self._conn.rollback()
             raise
+
+    def _get_devices(self):
+        self._cursor.execute("SELECT * FROM Devices")
+        devices: List[Device] = []
+        for device in self._cursor.fetchall():
+            self._cursor.execute("SELECT * FROM Whitelist WHERE device_id = %s", (device['id'],))
+            whitelist = [whitelisted['whitelisted_ip'] for whitelisted in self._cursor.fetchall()]
+            devices.append(Device(device['name'], device['ip'], device['mac_address'], device['port'], device['protocol'], device['is_quarantined'], whitelist))
+        return devices
+
 
 # CHANGE HERE
     def _commit_log(self, log):

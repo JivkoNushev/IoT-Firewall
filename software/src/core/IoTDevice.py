@@ -21,6 +21,26 @@ class IoTDevice:
 
         self.is_quarantined = False
 
+    def __init__(self, name, ip, mac_address, port, protocol, is_quarantined, whitelist):
+        self.name = name
+
+        self.ip = ip
+
+        self.mac_address = mac_address
+
+        self.ports = []
+        self.ports.append(port)
+
+        self.protocols = []
+        self.protocols.append(protocol)
+
+        self.whitelist = whitelist
+
+        self.rules = []
+
+        self.is_quarantined = is_quarantined
+
+
     def update_from_packet(self, packet):
         if packet.port not in self.ports:
             self.ports.append(packet.port)

@@ -4,12 +4,13 @@ from typing import List
 import pyshark
 import iptc
 
-from .database import thread_safe_queue_logs, thread_safe_queue_devices, thread_safe_queue_whitelists
+from .database import _get_devices, thread_safe_queue_logs, thread_safe_queue_devices, thread_safe_queue_whitelists
 from .IoTDevice import IoTDevice
 from .firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
 
 class Firewall:
     def __init__(self):
+        # TODO: update parameters from database, dont save them statically/dynamically
         self._start_time = datetime.now()
         self._grace_period = GRACE_PERIOD
         self._grace_period_ended = False
@@ -27,6 +28,8 @@ class Firewall:
     
     def run(self):
         for packet in self.capture.sniff_continuously():
+            #FIXME: get_devices from databes
+            self._known_devices = self._get_devices_from_db()
             if self._in_grace_period(self):
                 if self._is_ip_in_lan(packet.ip.src) and self._is_valid_mac_address(packet.eth.src):
                     self._save_device(packet)
@@ -40,7 +43,11 @@ class Firewall:
                     self.quarantine_devices_from_packet(packet)
 
             self._save_log_db(packet)
+
     
+    def _get_devices_from_db(self):
+        return _get_devices()
+
     def _get_chain(self, direction: str) -> iptc.Chain:
         return self._input_chain if direction == "INPUT" else self._output_chain
     
