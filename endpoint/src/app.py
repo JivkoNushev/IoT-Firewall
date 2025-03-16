@@ -127,7 +127,7 @@ def add_device():
     is_quarantined = data.get('is_quarantined')
     whitelist = data.get('whitelist')
 
-    if not name or not ip or not mac_address or not port or not protocol or is_quarantined is None or not whitelist:
+    if not name or not ip or not mac_address or not port or not protocol or is_quarantined is None:
         return jsonify({"error": "name, ip, mac_address, port, protocol, is_quarantined, whitelist are required"}), 400
 
     conn = get_db_connection()
