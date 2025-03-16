@@ -1,16 +1,13 @@
 ---
-- name: Configure IoT Firewall infrastructure
+- name: IoT-Firewall
   hosts: all
   become: yes
   vars:
-    ssid: "IoTFirewall"
+    ssid: "IoT-Firewall"
     wifi_interface: "wlan0"
     wifi_password: "StrongPassword123"
-    mysql_host: "127.0.0.1"
-    mysql_user: "root"
-    mysql_password: "rootpassword"
-    mysql_database: "testdb"
-  
+    python_app_dir: "/IoT-Firewall"
+
   tasks:
 
     - name: Install required packages
@@ -23,6 +20,7 @@
           - mysql-client
           - hostapd
           - dnsmasq
+          - git
         state: present
         update_cache: yes
 
@@ -31,6 +29,75 @@
         name:
           - pyshark
           - mysql-connector-python
+          - flask
+          - gunicorn
+
+    - name: Create Python app directory
+      file:
+        path: "{{ python_app_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy firewall.py
+      copy:
+        src: firewall.py
+        dest: "{{ python_app_dir }}/firewall.py"
+        mode: "0755"
+
+    - name: Copy flask_app.py
+      copy:
+        src: flask_app.py
+        dest: "{{ python_app_dir }}/flask_app.py"
+        mode: "0755"
+
+    - name: Create systemd service for firewall.py
+      copy:
+        dest: /etc/systemd/system/firewall.service
+        content: |
+          [Unit]
+          Description=Firewall Script
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/python3 {{ python_app_dir }}/firewall.py
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart firewall service
+
+    - name: Create systemd service for Flask API
+      copy:
+        dest: /etc/systemd/system/flask_app.service
+        content: |
+          [Unit]
+          Description=Flask API for Mobile App
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/gunicorn -b 0.0.0.0:5000 flask_app:app
+          WorkingDirectory={{ python_app_dir }}
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart flask service
+
+    - name: Enable and start firewall service
+      systemd:
+        name: firewall
+        enabled: yes
+        state: started
+
+    - name: Enable and start Flask API service
+      systemd:
+        name: flask_app
+        enabled: yes
+        state: started
 
     - name: Configure hostapd
       copy:
@@ -100,6 +167,16 @@
         - dnsmasq
 
   handlers:
+    - name: Restart firewall service
+      systemd:
+        name: firewall
+        state: restarted
+
+    - name: Restart flask service
+      systemd:
+        name: flask_app
+        state: restarted
+
     - name: Restart hostapd
       systemd:
         name: hostapd
