@@ -1,5 +1,6 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import mysql.connector
+from mysql.connector import Error
 
 app = Flask(__name__)
 
@@ -10,58 +11,105 @@ db_config = {
     'database': 'firewall_db'
 }
 
-conn = mysql.connector.connect(
+def get_db_connection():
+    try:
+        conn = mysql.connector.connect(
             host=db_config['host'],
             user=db_config['user'],
             password=db_config['password'],
             database=db_config['database']
         )
-cursor = conn.cursor()
+        return conn
+    except Error as e:
+        print(f"Database connection error: {e}")
+        raise
 
-@app.route('/get_whitelisted', methods=['POST'])
-def get_whitelisted(device_ip):
-    try:
-        cursor.execute("SELECT * FROM Whitelist WHERE ip = {device_ip}")
-        result = cursor.fetchall()
-        return jsonify(result)
-    except Exception as e:
-        return str(e)
+@app.route('/get_whitelisted', methods=['GET'])
+def get_whitelisted():
+    device_ip = request.args.get('device_ip')
+    if not device_ip:
+        return jsonify({"error": "device_ip is required"}), 400
 
-@app.route('/get_logs', methods=['POST'])
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM Whitelist WHERE ip = %s"
+    cursor.execute(query, (device_ip,))
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(result)
+
+@app.route('/get_logs', methods=['GET'])
 def get_logs():
-    try:
-        cursor.execute("SELECT * FROM Logs")
-        result = cursor.fetchall()
-        return jsonify(result)
-    except Exception as e:
-        return str(e)
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM Logs"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(result)
     
 @app.route('/get_devices', methods=['GET'])
 def get_devices():
-    try:
-        cursor.execute("SELECT * FROM Devices")
-        result = cursor.fetchall()
-        return jsonify(result)
-    except Exception as e:
-        return str(e)
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
 
-@app.route('/get_device', methods=['POST'])
-def get_device(device_ip):
-    try:
-        cursor.execute("SELECT * FROM Devices WHERE ip = {device_ip}")
-        result = cursor.fetchall()
-        return jsonify(result)
-    except Exception as e:
-        return str(e)
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM Devices"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
 
-@app.route('/get_device_logs', methods=['POST'])
-def get_device_logs(device_ip):
-    try:
-        cursor.execute("SELECT * FROM Logs WHERE ip_src = {device_ip} OR ip_dst = {device_ip}")
-        result = cursor.fetchall()
-        return jsonify(result)
-    except Exception as e:
-        return str(e)
+    return jsonify(result)
+
+@app.route('/get_device', methods=['GET'])
+def get_device():
+    device_ip = request.args.get('device_ip')
+    if not device_ip:
+        return jsonify({"error": "device_ip is required"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM Devices WHERE ip = %s"
+    cursor.execute(query, (device_ip,))
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(result)
+
+@app.route('/get_device_logs', methods=['GET'])
+def get_device_logs():
+    device_ip = request.args.get('device_ip')
+    if not device_ip:
+        return jsonify({"error": "device_ip is required"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "SELECT * FROM Logs WHERE ip_src = %s OR ip_dst = %s"
+    cursor.execute(query, (device_ip, device_ip))
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify(result)
 
 
 if __name__ == '__main__':
