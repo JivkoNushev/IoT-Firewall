@@ -10,7 +10,6 @@ thread_safe_queue_whitelists = queue.Queue()
 class Database:
     def __init__(self, host, user, password, database):
         try:
-            # Establish database connection
             self._conn = mysql.connector.connect(
                 host=host,
                 user=user,
@@ -19,10 +18,8 @@ class Database:
             )
             self._cursor = self._conn.cursor()
             
-            # Check if tables exist
             self._cursor.execute("SHOW TABLES LIKE 'Logs'")
-            if not self._cursor.fetchall():
-                self._create_tables()
+            self._create_tables()
                 
         except Error as e:
             print(f"Database connection error: {e}")
@@ -30,15 +27,15 @@ class Database:
 
     def run(self):
         while True:
-            if thread_safe_queue_logs.not_empty():
+            if not thread_safe_queue_logs.empty():
                 log = thread_safe_queue_logs.get()
                 self._commit_log(log)
 
-            if thread_safe_queue_devices.not_empty():
+            if not thread_safe_queue_devices.empty():
                 device = thread_safe_queue_devices.get()
                 self._commit_device(device)
 
-            if thread_safe_queue_whitelists.not_empty():
+            if not thread_safe_queue_whitelists.empty():
                 whitelist = thread_safe_queue_whitelists.get()
                 self._commit_whitelist(whitelist)
 
@@ -47,7 +44,7 @@ class Database:
             # Create Logs table
             self._cursor.execute("""    
 
-                CREATE TABLE Logs (
+                CREATE TABLE IF NOT EXISTS Logs (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     ip_src VARCHAR(45) NOT NULL,
                     ip_dst VARCHAR(45) NOT NULL,
@@ -61,10 +58,10 @@ class Database:
 
             # Create Devices table
             self._cursor.execute("""
-                CREATE TABLE Devices (
+                CREATE TABLE IF NOT EXISTS Devices (
                     id INT PRIMARY KEY AUTO_INCREMENT,
                     name VARCHAR(255) NOT NULL,
-                    ip VARCHAR(45) NOT NULL,
+                    ip VARCHAR(45) NOT NULL UNIQUE,
                     mac_address VARCHAR(17) NOT NULL UNIQUE,
                     port INT NOT NULL,
                     protocol VARCHAR(20) NOT NULL,
@@ -75,12 +72,13 @@ class Database:
             """)
 
             #Whitelist
+            # TODO: flag is device is not whitelisted?
             self._cursor.execute("""
-                CREATE TABLE Whitelist (
+                CREATE TABLE IF NOT EXISTS Whitelist (
                     id INT PRIMARY KEY AUTO_INCREMENT,
-                    ip VARCHAR(45) NOT NULL,
-                    whitelisted_ip TINYINT(1) NOT NULL DEFAULT 0,
-                    FOREIGN KEY (id) REFERENCES Devices(id)
+                    whitelisted_ip VARCHAR(45) NOT NULL UNIQUE,
+                    device_id INT NOT NULL DEFAULT 0,
+                    FOREIGN KEY (device_id) REFERENCES Devices(id)
                 ) ENGINE=InnoDB
             """)
 
@@ -90,12 +88,13 @@ class Database:
             self._conn.rollback()
             raise
 
+# CHANGE HERE
     def _commit_log(self, log):
         try:
             self._cursor.execute("""
                 INSERT INTO Logs (ip_src, ip_dst, mac_src, mac_dst, port, protocol)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (log.ip_src, log.ip_dst, log.mac_src, log.mac_dst, log.port, log.protocol))
+            """, (log['ip_src'], log['ip_dst'], log['mac_src'], log['mac_dst'], log['port'], log['protocol']))
             self._conn.commit()
         except Error as e:
             print(f"Log commit error: {e}")
@@ -111,7 +110,7 @@ class Database:
             else:
                 self._cursor.execute("""
                     INSERT INTO Devices (name, ip, mac_address, port, protocol, is_quarantined)
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (device.name, device.ip, device.mac_address, device.port, device.protocol, device.is_quarantined))
             self._conn.commit()
         except Error as e:

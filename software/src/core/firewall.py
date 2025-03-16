@@ -39,7 +39,7 @@ class Firewall:
                 if self.packet_is_malicious(packet):
                     self.quarantine_devices_from_packet(packet)
 
-            self._save_packet_info(packet)
+            self._save_log_db(packet)
     
     def _get_chain(self, direction: str) -> iptc.Chain:
         return self._input_chain if direction == "INPUT" else self._output_chain
@@ -211,8 +211,21 @@ class Firewall:
             device.whitelist.remove(ip)
             self._remove_whitelist_db(device.ip, ip)
 
+
+    # CHANGE HERE
     def _save_log_db(self, packet):
-        thread_safe_queue_logs.put(packet)
+        log_data = {
+            "ip_src": packet.ip.src,
+            "ip_dst": packet.ip.dst,
+            "mac_src": packet.eth.src,
+            "mac_dst": packet.eth.dst,
+            "port": packet.tcp.srcport,
+            "protocol": packet.highest_layer
+        }
+
+        thread_safe_queue_logs.put(log_data)
+
+        # thread_safe_queue_logs.put(packet)
     
     def _save_device_db(self, device):
         thread_safe_queue_devices.put(device)
