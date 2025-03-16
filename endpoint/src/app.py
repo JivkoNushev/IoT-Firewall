@@ -151,5 +151,30 @@ def add_device():
 
     return jsonify({"device_id": device_id})
 
+# quarantine device
+@app.route('/quarantine_device', methods=['POST'])
+def quarantine_device():
+    data = request.json
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    device_id = data.get('device_id')
+    if not device_id:
+        return jsonify({"error": "device_id is required"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "UPDATE Devices SET is_quarantined = 1 WHERE id = %s"
+    cursor.execute(query, (device_id,))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"device_id": device_id})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
