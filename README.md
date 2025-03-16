@@ -3,6 +3,9 @@
 # Fully realised UI repository
 https://github.com/BorisBachev/firewall-ui
 
+# Presentation
+https://docs.google.com/presentation/d/1tixqi4b42xs2SJqtNKmiMYWiePlMGh91MPgo3pOg9FI/edit?usp=sharing
+
 ## Main Tasks
 
     - VLAN, VPN
