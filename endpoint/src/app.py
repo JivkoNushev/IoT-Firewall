@@ -112,5 +112,44 @@ def get_device_logs():
     return jsonify(result)
 
 
+# post a new device
+@app.route('/add_device', methods=['POST'])
+def add_device():
+    data = request.json
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    name = data.get('name')
+    ip = data.get('ip')
+    mac_address = data.get('mac_address')
+    port = data.get('port')
+    protocol = data.get('protocol')
+    is_quarantined = data.get('is_quarantined')
+    whitelist = data.get('whitelist')
+
+    if not name or not ip or not mac_address or not port or not protocol or is_quarantined is None or not whitelist:
+        return jsonify({"error": "name, ip, mac_address, port, protocol, is_quarantined, whitelist are required"}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"error": "Failed to connect to the database"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    query = "INSERT INTO Devices (name, ip, mac_address, port, protocol, is_quarantined) VALUES (%s, %s, %s, %s, %s, %s)"
+    cursor.execute(query, (name, ip, mac_address, port, protocol, is_quarantined))
+    conn.commit()
+
+    device_id = cursor.lastrowid
+
+    query = "INSERT INTO Whitelist (device_id, whitelisted_ip) VALUES (%s, %s)"
+    for ip in whitelist:
+        cursor.execute(query, (device_id, ip))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"device_id": device_id})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
