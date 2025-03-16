@@ -2,12 +2,34 @@ import mysql.connector
 from mysql.connector import Error
 
 import queue
-from IoTDevice import Device
+from .IoTDevice import IoTDevice
 from typing import List
 
 thread_safe_queue_logs = queue.Queue()
 thread_safe_queue_devices = queue.Queue()
 thread_safe_queue_whitelists = queue.Queue()
+
+thread_safe_queue_put_devices = queue.Queue()
+thread_safe_queue_get_devices = queue.Queue()
+
+
+def run_database(self):
+        while True:
+            if not thread_safe_queue_logs.empty():
+                log = thread_safe_queue_logs.get()
+                self._commit_log(log)
+
+            if not thread_safe_queue_devices.empty():
+                device = thread_safe_queue_devices.get()
+                self._commit_device(device)
+
+            if not thread_safe_queue_whitelists.empty():
+                whitelist = thread_safe_queue_whitelists.get()
+                self._commit_whitelist(whitelist)
+            
+            if not thread_safe_queue_get_devices.empty():
+                thread_safe_queue_get_devices.get()
+                thread_safe_queue_put_devices.put(self._get_devices())
 
 class Database:
     def __init__(self, host, user, password, database):
@@ -25,22 +47,7 @@ class Database:
                 
         except Error as e:
             print(f"Database connection error: {e}")
-            raise
-
-    def run(self):
-        while True:
-            if not thread_safe_queue_logs.empty():
-                log = thread_safe_queue_logs.get()
-                self._commit_log(log)
-
-            if not thread_safe_queue_devices.empty():
-                device = thread_safe_queue_devices.get()
-                self._commit_device(device)
-
-            if not thread_safe_queue_whitelists.empty():
-                whitelist = thread_safe_queue_whitelists.get()
-                self._commit_whitelist(whitelist)
-
+            
     def _create_tables(self):
         try:
             # Create Logs table
@@ -88,16 +95,14 @@ class Database:
             self._conn.commit()
         except Error as e:
             print(f"Table creation error: {e}")
-            self._conn.rollback()
-            raise
 
     def _get_devices(self):
         self._cursor.execute("SELECT * FROM Devices")
-        devices: List[Device] = []
+        devices: List[IoTDevice] = []
         for device in self._cursor.fetchall():
             self._cursor.execute("SELECT * FROM Whitelist WHERE device_id = %s", (device['id'],))
             whitelist = [whitelisted['whitelisted_ip'] for whitelisted in self._cursor.fetchall()]
-            devices.append(Device(device['name'], device['ip'], device['mac_address'], device['port'], device['protocol'], device['is_quarantined'], whitelist))
+            devices.append(IoTDevice(device['name'], device['ip'], device['mac_address'], device['port'], device['protocol'], device['is_quarantined'], whitelist))
         return devices
 
 

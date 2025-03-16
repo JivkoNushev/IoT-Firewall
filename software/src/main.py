@@ -1,14 +1,15 @@
 import threading
 
-from core.firewall import Firewall
-from core.database import Database
+from core.firewall import Firewall, run_firewall
+from core.database import Database, run_database
+
 
 if __name__ == '__main__':
     database = Database("localhost", "firewall_user", "password", "firewall_db")
-    database_thread = threading.Thread(target=Database.run)
+    database_thread = threading.Thread(target=run_database, args=(database,))
 
     firewall = Firewall()
-    firewall_thread = threading.Thread(target=Firewall.run)
+    firewall_thread = threading.Thread(target=run_firewall, args=(firewall,))
     
 
     database_thread.start()

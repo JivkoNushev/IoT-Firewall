@@ -4,9 +4,28 @@ from typing import List
 import pyshark
 import iptc
 
-from .database import _get_devices, thread_safe_queue_logs, thread_safe_queue_devices, thread_safe_queue_whitelists
+from .database import thread_safe_queue_put_devices, thread_safe_queue_get_devices, thread_safe_queue_logs, thread_safe_queue_devices, thread_safe_queue_whitelists
 from .IoTDevice import IoTDevice
 from .firewall_config import INTERFACE, SNIFF_TIMEOUT_SEC, GRACE_PERIOD, LAN_SUBNET
+
+
+def run_firewall(self):
+    for packet in self.capture.sniff_continuously():
+        #FIXME: get_devices from databes
+        self._known_devices = self._get_devices_from_db()
+        if self._in_grace_period(self):
+            if self._is_ip_in_lan(packet.ip.src) and self._is_valid_mac_address(packet.eth.src):
+                self._save_device(packet)
+        else:
+            if not self._blocked_all_traffic:
+                for device in self._known_devices:
+                    self._block_all_traffic(device)
+                self._blocked_all_traffic = True
+
+            if self.packet_is_malicious(packet):
+                self.quarantine_devices_from_packet(packet)
+
+        self._save_log_db(packet)
 
 class Firewall:
     def __init__(self):
@@ -18,7 +37,7 @@ class Firewall:
 
         self._filter_table = iptc.Table(iptc.Table.FILTER)
         self._input_chain = iptc.Chain(self._filter_table, "INPUT")
-        self._output_chain = iptc.Chain(self._filter_table.filter_table, "OUTPUT")
+        self._output_chain = iptc.Chain(self._filter_table, "OUTPUT")
         self._known_devices: List[IoTDevice] = []
 
         self._valid_mac_addresses = self._get_valid_mac_addresses()
@@ -26,27 +45,11 @@ class Firewall:
         self.capture = pyshark.LiveCapture(interface=INTERFACE)
         self.capture.sniff(timeout=SNIFF_TIMEOUT_SEC)
     
-    def run(self):
-        for packet in self.capture.sniff_continuously():
-            #FIXME: get_devices from databes
-            self._known_devices = self._get_devices_from_db()
-            if self._in_grace_period(self):
-                if self._is_ip_in_lan(packet.ip.src) and self._is_valid_mac_address(packet.eth.src):
-                    self._save_device(packet)
-            else:
-                if not self._blocked_all_traffic:
-                    for device in self._known_devices:
-                        self._block_all_traffic(device)
-                    self._blocked_all_traffic = True
-
-                if self.packet_is_malicious(packet):
-                    self.quarantine_devices_from_packet(packet)
-
-            self._save_log_db(packet)
-
-    
     def _get_devices_from_db(self):
-        return _get_devices()
+        thread_safe_queue_put_devices.put(1)
+        while(thread_safe_queue_get_devices.empty()):
+            pass
+        return thread_safe_queue_get_devices.get()
 
     def _get_chain(self, direction: str) -> iptc.Chain:
         return self._input_chain if direction == "INPUT" else self._output_chain
@@ -106,7 +109,11 @@ class Firewall:
     def _get_valid_mac_addresses(self):
         valid_mac_addresses = []
 
-        with open('../mac_address_vendors.txt', 'r') as file:
+        import os
+        file_path = os.path.join(os.path.dirname(__file__), 'mac_address_vendors.txt')
+
+
+        with open(file_path, 'r') as file:
             for line in file:
                 mac = line.strip()
                 if mac:
